@@ -7,6 +7,10 @@ export const airportById: Map<number, Airport> = new Map(
   airports.map((a) => [a.id, a])
 );
 
+export const airportIndexById: Map<number, number> = new Map(
+  airports.map((a, i) => [a.id, i])
+);
+
 export const airportsByCountry: Map<string, Airport[]> = new Map();
 for (const airport of airports) {
   const list = airportsByCountry.get(airport.country) ?? [];
