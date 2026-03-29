@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { routeSchema, formatZodErrors } from "@/lib/validation";
 import { airportById, airports, airportIndexById } from "@/lib/airports";
 import { haversineDistance } from "@/lib/haversine";
-import { findIndicesWithinRadius } from "@/lib/spatial-index";
+import { neighbors } from "@/lib/spatial-index";
 
 const MAX_RANGE_MILES = 500;
 
@@ -28,6 +28,9 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const originIdx = airportIndexById.get(origin.id)!;
+  const destIdx = airportIndexById.get(destination.id)!;
+
   // Check direct flight
   const directDistance = haversineDistance(
     origin.latitude,
@@ -47,118 +50,98 @@ export async function GET(request: NextRequest) {
         total_stops: 2,
       },
     });
-    response.headers.set(
-      "X-Response-Time",
-      `${(performance.now() - start).toFixed(2)}ms`
-    );
+    response.headers.set("X-Response-Time", `${(performance.now() - start).toFixed(2)}ms`);
     return response;
   }
 
-  const originIdx = airportIndexById.get(origin.id)!;
-  const destIdx = airportIndexById.get(destination.id)!;
+  // Bidirectional BFS with precomputed neighbor graph
+  const parentF = new Int32Array(airports.length).fill(-1);
+  const parentB = new Int32Array(airports.length).fill(-1);
+  const visitedF = new Uint8Array(airports.length);
+  const visitedB = new Uint8Array(airports.length);
 
-  // A*-like BFS: use a priority queue sorted by estimated total hops
-  // Heuristic: straight-line distance / max range = minimum remaining hops
-  const destLat = destination.latitude;
-  const destLng = destination.longitude;
+  visitedF[originIdx] = 1;
+  visitedB[destIdx] = 1;
 
-  // Parent map for path reconstruction (no more path arrays in queue)
-  const parent = new Int32Array(airports.length).fill(-1);
-  const visited = new Uint8Array(airports.length); // faster than Set
-  visited[originIdx] = 1;
+  let frontierF = [originIdx];
+  let frontierB = [destIdx];
 
-  // Ring buffer BFS queue (avoids shift() O(n))
-  // For greedy best-first, we use a simple priority bucket approach:
-  // Since hops are integers, bucket by estimated total hops
-  const buckets: number[][] = [];
+  let meetIdx = -1;
 
-  function enqueue(idx: number, hopsFromOrigin: number) {
-    const remaining = haversineDistance(
-      airports[idx].latitude,
-      airports[idx].longitude,
-      destLat,
-      destLng
-    );
-    const estTotal = hopsFromOrigin + Math.ceil(remaining / MAX_RANGE_MILES);
-    while (buckets.length <= estTotal) buckets.push([]);
-    buckets[estTotal].push(idx);
-  }
-
-  enqueue(originIdx, 0);
-
-  // Track depth per node for the heuristic
-  const depth = new Uint16Array(airports.length);
-
-  while (true) {
-    // Find next non-empty bucket
-    let bucket: number[] | undefined;
-    let bi = 0;
-    for (; bi < buckets.length; bi++) {
-      if (buckets[bi].length > 0) {
-        bucket = buckets[bi];
-        break;
+  outer: while (frontierF.length > 0 && frontierB.length > 0) {
+    // Expand the smaller frontier
+    if (frontierF.length <= frontierB.length) {
+      const nextFrontier: number[] = [];
+      for (let i = 0; i < frontierF.length; i++) {
+        const cur = frontierF[i];
+        const nbrs = neighbors[cur];
+        for (let j = 0; j < nbrs.length; j++) {
+          const n = nbrs[j];
+          if (visitedF[n]) continue;
+          visitedF[n] = 1;
+          parentF[n] = cur;
+          if (visitedB[n]) {
+            meetIdx = n;
+            break outer;
+          }
+          nextFrontier.push(n);
+        }
       }
-    }
-    if (!bucket) break;
-
-    const currentIdx = bucket.pop()!;
-    const current = airports[currentIdx];
-    const currentDepth = depth[currentIdx];
-
-    const reachableIndices = findIndicesWithinRadius(
-      current.longitude,
-      current.latitude,
-      MAX_RANGE_MILES
-    );
-
-    for (let i = 0; i < reachableIndices.length; i++) {
-      const nextIdx = reachableIndices[i];
-      if (visited[nextIdx] || nextIdx === currentIdx) continue;
-
-      visited[nextIdx] = 1;
-      parent[nextIdx] = currentIdx;
-      depth[nextIdx] = currentDepth + 1;
-
-      if (nextIdx === destIdx) {
-        // Reconstruct path
-        const result = buildRouteFromParents(parent, originIdx, destIdx);
-        const response = NextResponse.json({ data: result });
-        response.headers.set(
-          "X-Response-Time",
-          `${(performance.now() - start).toFixed(2)}ms`
-        );
-        return response;
+      frontierF = nextFrontier;
+    } else {
+      const nextFrontier: number[] = [];
+      for (let i = 0; i < frontierB.length; i++) {
+        const cur = frontierB[i];
+        const nbrs = neighbors[cur];
+        for (let j = 0; j < nbrs.length; j++) {
+          const n = nbrs[j];
+          if (visitedB[n]) continue;
+          visitedB[n] = 1;
+          parentB[n] = cur;
+          if (visitedF[n]) {
+            meetIdx = n;
+            break outer;
+          }
+          nextFrontier.push(n);
+        }
       }
-
-      enqueue(nextIdx, currentDepth + 1);
+      frontierB = nextFrontier;
     }
   }
 
-  const response = NextResponse.json(
-    { data: null, message: "No route found within refueling constraints." },
-    { status: 404 }
-  );
-  response.headers.set(
-    "X-Response-Time",
-    `${(performance.now() - start).toFixed(2)}ms`
-  );
+  if (meetIdx === -1) {
+    const response = NextResponse.json(
+      { data: null, message: "No route found within refueling constraints." },
+      { status: 404 }
+    );
+    response.headers.set("X-Response-Time", `${(performance.now() - start).toFixed(2)}ms`);
+    return response;
+  }
+
+  // Reconstruct path: origin → meetIdx ← destination
+  const pathForward: number[] = [];
+  let cur = meetIdx;
+  while (cur !== -1) {
+    pathForward.push(cur);
+    cur = parentF[cur];
+  }
+  pathForward.reverse();
+
+  const pathBackward: number[] = [];
+  cur = parentB[meetIdx];
+  while (cur !== -1) {
+    pathBackward.push(cur);
+    cur = parentB[cur];
+  }
+
+  const fullPath = [...pathForward, ...pathBackward];
+  const result = buildRouteResponse(fullPath);
+  const response = NextResponse.json({ data: result });
+  response.headers.set("X-Response-Time", `${(performance.now() - start).toFixed(2)}ms`);
   return response;
 }
 
-function buildRouteFromParents(
-  parent: Int32Array,
-  originIdx: number,
-  destIdx: number
-) {
-  // Walk backwards from destination to origin
-  const pathIndices: number[] = [];
-  let cur = destIdx;
-  while (cur !== -1) {
-    pathIndices.push(cur);
-    cur = parent[cur];
-  }
-  pathIndices.reverse();
-
+function buildRouteResponse(pathIndices: number[]) {
   const stops = [];
   let totalDistance = 0;
 
