@@ -1,0 +1,333 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2026-03-29T00:00:00.000Z",
+  "__export_source": "insomnia.importers",
+  "resources": [
+    {
+      "_id": "wrk_airport_api",
+      "_type": "workspace",
+      "name": "Airport Geospatial API",
+      "description": "Next.js Airport API — geospatial queries with in-memory kdbush spatial index",
+      "scope": "collection"
+    },
+    {
+      "_id": "env_base",
+      "_type": "environment",
+      "parentId": "wrk_airport_api",
+      "name": "Base Environment",
+      "data": {
+        "base_url": "https://wonderful-take-home-nextjs.vercel.app"
+      }
+    },
+    {
+      "_id": "env_local",
+      "_type": "environment",
+      "parentId": "env_base",
+      "name": "Local",
+      "data": {
+        "base_url": "http://localhost:3001"
+      }
+    },
+    {
+      "_id": "env_vercel",
+      "_type": "environment",
+      "parentId": "env_base",
+      "name": "Vercel Production",
+      "data": {
+        "base_url": "https://wonderful-take-home-nextjs.vercel.app"
+      }
+    },
+    {
+      "_id": "fld_crud",
+      "_type": "request_group",
+      "parentId": "wrk_airport_api",
+      "name": "CRUD Endpoints"
+    },
+    {
+      "_id": "fld_geo",
+      "_type": "request_group",
+      "parentId": "wrk_airport_api",
+      "name": "Geospatial Endpoints"
+    },
+    {
+      "_id": "fld_edge",
+      "_type": "request_group",
+      "parentId": "wrk_airport_api",
+      "name": "Edge Cases & Validation"
+    },
+    {
+      "_id": "req_list_all",
+      "_type": "request",
+      "parentId": "fld_crud",
+      "name": "List All Airports",
+      "description": "Returns all 8,107 airports. Statically cached via ISR (1hr revalidation). Served from edge CDN on Vercel.",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/airports",
+      "parameters": []
+    },
+    {
+      "_id": "req_single_jfk",
+      "_type": "request",
+      "parentId": "fld_crud",
+      "name": "Single Airport — JFK",
+      "description": "Get airport by ID. Pre-rendered at build time for all 8,107 airports (SSG). Zero compute cost on Vercel.",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/airports/3797",
+      "parameters": []
+    },
+    {
+      "_id": "req_single_lax",
+      "_type": "request",
+      "parentId": "fld_crud",
+      "name": "Single Airport — LAX",
+      "description": "Los Angeles International Airport",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/airports/3484",
+      "parameters": []
+    },
+    {
+      "_id": "req_single_kabul",
+      "_type": "request",
+      "parentId": "fld_crud",
+      "name": "Single Airport — Kabul",
+      "description": "Kabul International Airport",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/airports/2050",
+      "parameters": []
+    },
+    {
+      "_id": "req_search_jfk_50",
+      "_type": "request",
+      "parentId": "fld_geo",
+      "name": "Search — 50mi from JFK",
+      "description": "Find all airports within 50 miles of JFK coordinates. Uses in-memory kdbush spatial index. Returns 34 airports sorted by distance.",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/airports/search",
+      "parameters": [
+        { "name": "latitude", "value": "40.6413" },
+        { "name": "longitude", "value": "-73.7781" },
+        { "name": "radius", "value": "50" }
+      ]
+    },
+    {
+      "_id": "req_search_london_50",
+      "_type": "request",
+      "parentId": "fld_geo",
+      "name": "Search — 50mi from London",
+      "description": "Airports near London Heathrow. Returns 42 airports.",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/airports/search",
+      "parameters": [
+        { "name": "latitude", "value": "51.4700" },
+        { "name": "longitude", "value": "-0.4543" },
+        { "name": "radius", "value": "50" }
+      ]
+    },
+    {
+      "_id": "req_search_tokyo_30",
+      "_type": "request",
+      "parentId": "fld_geo",
+      "name": "Search — 30mi from Tokyo",
+      "description": "Airports near Tokyo. Returns 10 airports.",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/airports/search",
+      "parameters": [
+        { "name": "latitude", "value": "35.6762" },
+        { "name": "longitude", "value": "139.6503" },
+        { "name": "radius", "value": "30" }
+      ]
+    },
+    {
+      "_id": "req_distance_jfk_lax",
+      "_type": "request",
+      "parentId": "fld_geo",
+      "name": "Distance — JFK to LAX",
+      "description": "Haversine distance between JFK and LAX. Expected: ~2,469 miles.",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/airports/distance",
+      "parameters": [
+        { "name": "airport1_id", "value": "3797" },
+        { "name": "airport2_id", "value": "3484" }
+      ]
+    },
+    {
+      "_id": "req_distance_jfk_heathrow",
+      "_type": "request",
+      "parentId": "fld_geo",
+      "name": "Distance — JFK to Heathrow",
+      "description": "Haversine distance between JFK and London Heathrow. Expected: ~3,442 miles.",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/airports/distance",
+      "parameters": [
+        { "name": "airport1_id", "value": "3797" },
+        { "name": "airport2_id", "value": "507" }
+      ]
+    },
+    {
+      "_id": "req_distance_kabul_jfk",
+      "_type": "request",
+      "parentId": "fld_geo",
+      "name": "Distance — Kabul to JFK",
+      "description": "Long-distance haversine. Expected: ~6,732 miles.",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/airports/distance",
+      "parameters": [
+        { "name": "airport1_id", "value": "2050" },
+        { "name": "airport2_id", "value": "3797" }
+      ]
+    },
+    {
+      "_id": "req_closest_us_mexico",
+      "_type": "request",
+      "parentId": "fld_geo",
+      "name": "Closest — US vs Mexico",
+      "description": "Closest airport pair between US and Mexico. Expected: Brown Field Municipal ↔ Rodriguez Intl (Tijuana), ~2.23 miles.",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/airports/closest",
+      "parameters": [
+        { "name": "country1", "value": "United States" },
+        { "name": "country2", "value": "Mexico" }
+      ]
+    },
+    {
+      "_id": "req_closest_canada_france",
+      "_type": "request",
+      "parentId": "fld_geo",
+      "name": "Closest — Canada vs France",
+      "description": "Closest airport pair between Canada and France. Expected: Yarmouth ↔ Marigot, ~1,788 miles.",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/airports/closest",
+      "parameters": [
+        { "name": "country1", "value": "Canada" },
+        { "name": "country2", "value": "France" }
+      ]
+    },
+    {
+      "_id": "req_route_jfk_lax",
+      "_type": "request",
+      "parentId": "fld_geo",
+      "name": "Route — JFK to LAX",
+      "description": "BFS shortest route (fewest stops) with 500-mile refueling constraint. JFK to LAX requires ~7 stops.",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/airports/route-find",
+      "parameters": [
+        { "name": "airport1_id", "value": "3797" },
+        { "name": "airport2_id", "value": "3484" }
+      ]
+    },
+    {
+      "_id": "req_route_kabul_jfk",
+      "_type": "request",
+      "parentId": "fld_geo",
+      "name": "Route — Kabul to JFK",
+      "description": "Intercontinental BFS route. Kabul to JFK requires ~18 stops across Asia, Europe, and the Atlantic.",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/airports/route-find",
+      "parameters": [
+        { "name": "airport1_id", "value": "2050" },
+        { "name": "airport2_id", "value": "3797" }
+      ]
+    },
+    {
+      "_id": "req_route_direct",
+      "_type": "request",
+      "parentId": "fld_geo",
+      "name": "Route — Direct Flight (short distance)",
+      "description": "Two nearby airports within 500mi — should return a direct route with 2 stops.",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/airports/route-find",
+      "parameters": [
+        { "name": "airport1_id", "value": "3797" },
+        { "name": "airport2_id", "value": "3494" }
+      ]
+    },
+    {
+      "_id": "req_val_missing_params",
+      "_type": "request",
+      "parentId": "fld_edge",
+      "name": "Validation — Missing Search Params",
+      "description": "Should return 422 with field-level errors for missing latitude, longitude, and radius.",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/airports/search",
+      "parameters": []
+    },
+    {
+      "_id": "req_val_bad_latitude",
+      "_type": "request",
+      "parentId": "fld_edge",
+      "name": "Validation — Latitude Out of Range",
+      "description": "Latitude 999 is invalid (must be -90 to 90). Should return 422.",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/airports/search",
+      "parameters": [
+        { "name": "latitude", "value": "999" },
+        { "name": "longitude", "value": "0" },
+        { "name": "radius", "value": "10" }
+      ]
+    },
+    {
+      "_id": "req_404_airport",
+      "_type": "request",
+      "parentId": "fld_edge",
+      "name": "404 — Nonexistent Airport",
+      "description": "Airport ID 999999 does not exist. Should return 404.",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/airports/999999",
+      "parameters": []
+    },
+    {
+      "_id": "req_404_country",
+      "_type": "request",
+      "parentId": "fld_edge",
+      "name": "404 — Nonexistent Country",
+      "description": "Countries 'Narnia' and 'Mordor' have no airports. Should return 404.",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/airports/closest",
+      "parameters": [
+        { "name": "country1", "value": "Narnia" },
+        { "name": "country2", "value": "Mordor" }
+      ]
+    },
+    {
+      "_id": "req_distance_same",
+      "_type": "request",
+      "parentId": "fld_edge",
+      "name": "Distance — Same Airport",
+      "description": "Distance from JFK to itself. Should return 0.",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/airports/distance",
+      "parameters": [
+        { "name": "airport1_id", "value": "3797" },
+        { "name": "airport2_id", "value": "3797" }
+      ]
+    },
+    {
+      "_id": "req_search_zero_radius",
+      "_type": "request",
+      "parentId": "fld_edge",
+      "name": "Search — Zero Radius",
+      "description": "Radius of 0 should return an empty array.",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/airports/search",
+      "parameters": [
+        { "name": "latitude", "value": "40.6413" },
+        { "name": "longitude", "value": "-73.7781" },
+        { "name": "radius", "value": "0" }
+      ]
+    },
+    {
+      "_id": "req_closest_same_country",
+      "_type": "request",
+      "parentId": "fld_edge",
+      "name": "Closest — Same Country",
+      "description": "Japan vs Japan. Returns the two closest airports within Japan (distance 0 — same airport).",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/airports/closest",
+      "parameters": [
+        { "name": "country1", "value": "Japan" },
+        { "name": "country2", "value": "Japan" }
+      ]
+    }
+  ]
+}
